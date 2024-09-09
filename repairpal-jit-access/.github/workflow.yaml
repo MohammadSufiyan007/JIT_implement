@@ -1,0 +1,52 @@
+name: 'Terraform CI'
+
+on:
+  push:
+    branches:
+    - 'feature/**'
+    - main
+  pull_request:
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    env:
+      WORKING_DIRECTORY: /repairpal-jit-access/jit-code # Change this as per client name directory which ever you'are creating
+      PROJECT_ID: project_id # needs to changed as part of jit script 
+      PROJECT_NUMBER: 124136492039 # needs to be changed as project 
+    defaults:
+      run:
+        shell: bash
+
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+
+    - name: Set Google Cloud credentials
+      uses: 'google-github-actions/auth@v2'
+      with:
+        service_account: 'jit-access@${{ env.PROJECT_ID }}.iam.gserviceaccount.com' # my-service-account@my-project.iam.gserviceaccount.com
+        workload_identity_provider: 'projects/${{ env.PROJECT_NUMBER }}/locations/global/workloadIdentityPools/66deg-jit-github/providers/jit-access' # "projects/123456789/locations/global/workloadIdentityPools/WIF_POOL/providers/WIF_PROVIDER"
+     
+
+    - name: Terraform Init
+      run: terraform init
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+
+    - name: Terraform Format
+      run: terraform fmt -check
+      continue-on-error: true
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+
+    - name: Terraform Plan
+      run: terraform plan 
+      working-directory: ${{ env.WORKING_DIRECTORY }}
+
+    - name: Terraform Apply
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      run: terraform apply -auto-approve
+      working-directory: ${{ env.WORKING_DIRECTORY }}
